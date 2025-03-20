@@ -11,6 +11,7 @@ nltk.download('stopwords')
 
 STOP_WORDS = ["так", "то", "вот", "уже", "ни", "же", "не", "бы", "а", "там", "чтоб", "ли", "ли", "б", "хоть", "уж"],
 FOLDER_SAVE = 'result_ngramms'
+N_GRAMMS = tuple((i for i in range(1, 3)))
 
 def extract_ngrams(text, n):
     words = [word for word in word_tokenize(text.lower()) if word.isalnum() and word not in STOP_WORDS and not word.isdigit()]
@@ -40,7 +41,7 @@ def process_texts_from_csv(csv_file, n_values):
 
     df = pd.read_csv(csv_file)
     for index, row in df.iterrows():
-        text = row[0]
+        text = row.iloc[0]
         text_ngrams = {n: extract_ngrams(text, n) for n in n_values}
         text_ngram_count = {n: Counter(text_ngrams[n]) for n in n_values}
         text_ngram_counts.append((index, text_ngram_count))
@@ -88,37 +89,24 @@ def save_frequency_tables(text_ngram_counts, ngram_counts):
         writer.writerows(relative_freq)
 
 
-def main_console():
-    parser = argparse.ArgumentParser(description='Extract n-grams from text files and analyze their frequency.')
-    parser.add_argument('--input', required=True, help='Input directory for text files or CSV file.')
-    parser.add_argument('--type', choices=['directory', 'csv'], required=True, help='Type of input.')
-    parser.add_argument('--n', type=int, nargs='+', required=True, help='Values of n for n-grams (e.g., 1 2 3).')
-    parser.add_argument('--output', required=True, help='Prefix for output CSV files.')
+def console():
+    parser = argparse. ArgumentParser(description="Простое CLI-приложение на Python")
+    parser.add_argument("input", help="Введите папку с файлами расширения .txt или файл.csv")
     args = parser.parse_args()
-
-    n_values = args.n
-    output_prefix = args.output
-
-    if args.type == 'directory':
-        ngram_counts, text_ngram_counts = process_texts_from_directory(args.input, n_values)
-    elif args.type == 'csv':
-        ngram_counts, text_ngram_counts = process_texts_from_csv(args.input, n_values)
-
-    save_ngram_counts(ngram_counts, output_prefix)
-    save_frequency_tables(text_ngram_counts, ngram_counts, output_prefix)
+    return args.input
 
 
 def main():
-    n_gramms = tuple((i for i in range(1, 3)))
-    type_input_file = 'csv'
+    console()
+    type_input_file = console()
 
     ngram_counts = {}
     text_ngram_counts = []
 
     if type_input_file == 'directory':
-        ngram_counts, text_ngram_counts = process_texts_from_directory('tests', n_gramms)
+        ngram_counts, text_ngram_counts = process_texts_from_directory('tests', N_GRAMMS)
     elif type_input_file == 'csv':
-        ngram_counts, text_ngram_counts = process_texts_from_csv('test_text.csv', n_gramms)
+        ngram_counts, text_ngram_counts = process_texts_from_csv('test_text.csv', N_GRAMMS)
 
     save_ngram_counts(ngram_counts)
     save_frequency_tables(text_ngram_counts, ngram_counts)
