@@ -139,7 +139,6 @@ def main():
 
     create_dirs_for_results()
     is_file(input_file)
-    print(1)
 
     if type_input_file == '':
         process_texts_from_directory(input_file, N_GRAMMS)
