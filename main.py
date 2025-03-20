@@ -98,18 +98,24 @@ def console():
 
 def main():
     console()
-    type_input_file = console()
+    input_file = console()
+    type_input_file = os.path.splitext(input_file)[1]
 
     ngram_counts = {}
     text_ngram_counts = []
 
-    if type_input_file == 'directory':
-        ngram_counts, text_ngram_counts = process_texts_from_directory('tests', N_GRAMMS)
-    elif type_input_file == 'csv':
-        ngram_counts, text_ngram_counts = process_texts_from_csv('test_text.csv', N_GRAMMS)
-
+    if type_input_file == '':
+        ngram_counts, text_ngram_counts = process_texts_from_directory(input_file, N_GRAMMS)
+    elif type_input_file == '.csv':
+        ngram_counts, text_ngram_counts = process_texts_from_csv(input_file, N_GRAMMS)
+    else:
+        print('Wrong dir/csv')
+        input()
+        quit(1)
     save_ngram_counts(ngram_counts)
     save_frequency_tables(text_ngram_counts, ngram_counts)
+
+    print('Successful')
 
 
 if __name__ == '__main__':
