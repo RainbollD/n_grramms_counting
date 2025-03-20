@@ -5,20 +5,44 @@ import pandas as pd
 from collections import Counter
 from nltk import ngrams
 from nltk.tokenize import word_tokenize
-import nltk
 
-nltk.download('stopwords')
+from config import *
 
-STOP_WORDS = ["так", "то", "вот", "уже", "ни", "же", "не", "бы", "а", "там", "чтоб", "ли", "ли", "б", "хоть", "уж"],
-FOLDER_SAVE = 'result_ngramms'
-N_GRAMMS = tuple((i for i in range(1, 3)))
+
+def create_null_dir(path):
+    # Создание папки, если ее нет
+    if not os.path.isdir(path):
+        os.makedirs(path)
+
+
+def create_dirs_for_results():
+    # Создание папок для вывода результата
+    create_null_dir(FOLDER_SAVE)
+    create_null_dir(os.path.join(FOLDER_SAVE, 'best_n'))
+    create_null_dir(os.path.join(FOLDER_SAVE, 'frequencies'))
+
+
+def is_file(file_path):
+    if not os.path.exists(file_path):
+        print(f"Файл {file_path} не существует.")
+        quit(1)
+
 
 def extract_ngrams(text, n):
-    words = [word for word in word_tokenize(text.lower()) if word.isalnum() and word not in STOP_WORDS and not word.isdigit()]
+    # Создание n-грамм из текста
+    words = [word for word in word_tokenize(text.lower()) if
+             word.isalnum() and word not in STOP_WORDS and not word.isdigit()]
     return list(ngrams(words, n))
 
 
 def process_texts_from_directory(directory, n_values):
+    """
+    Открывает папку, проходит по всем файлам с форматом .txt,
+    создает для каждой n свои n-граммы, считает количество и сохраняет
+    :param directory: путь к папке
+    :param n_values: кортеж для n
+    :return:
+    """
     ngram_counts = {n: Counter() for n in n_values}
     text_ngram_counts = []
     for filename in os.listdir(directory):
@@ -32,13 +56,20 @@ def process_texts_from_directory(directory, n_values):
                 for n in n_values:
                     ngram_counts[n].update(text_ngram_count[n])
 
-    return ngram_counts, text_ngram_counts
+            save_ngram_counts(ngram_counts, filename)
+            save_frequency_csv(text_ngram_counts, ngram_counts, filename)
 
 
 def process_texts_from_csv(csv_file, n_values):
+    """
+    Открывает файл,
+    создает для каждой n свои n-граммы, считает количество и сохраняет
+    :param csv_file: путь к файлу .csv
+    :param n_values: кортеж для n
+    :return:
+    """
     ngram_counts = {n: Counter() for n in n_values}
     text_ngram_counts = []
-
     df = pd.read_csv(csv_file)
     for index, row in df.iterrows():
         text = row.iloc[0]
@@ -49,71 +80,75 @@ def process_texts_from_csv(csv_file, n_values):
         for n in n_values:
             ngram_counts[n].update(text_ngram_count[n])
 
-    return ngram_counts, text_ngram_counts
+    save_ngram_counts(ngram_counts, csv_file)
+    save_frequency_csv(text_ngram_counts, ngram_counts, csv_file)
 
 
-def save_ngram_counts(ngram_counts):
+def save_ngram_counts(ngram_counts, filename):
+    filename, type_ = os.path.splitext(filename)
+    filename = f"{filename}_txt" if type_ == '.txt' else f"{filename}_csv"
+    create_null_dir(os.path.join(FOLDER_SAVE, 'best_n', filename))
+
     for n, counts in ngram_counts.items():
         top_ngrams = counts.most_common(20)
-        with open(os.path.join(FOLDER_SAVE, 'best_n', f'top_{n}.csv'), 'w', newline='', encoding='utf-8') as file:
+        with open(os.path.join(FOLDER_SAVE, 'best_n', filename, f'top_{n}.csv'), 'w', newline='',
+                  encoding='utf-8') as file:
             writer = csv.writer(file)
             writer.writerow(['n-gram', 'count'])
             writer.writerows(top_ngrams)
 
 
-def save_frequency_tables(text_ngram_counts, ngram_counts):
+def save_frequency_csv(text_ngram_counts, ngram_counts, filename):
+    filename, type_ = os.path.splitext(filename)
+    filename = f"{filename}_txt" if type_ == '.txt' else f"{filename}_csv"
+    create_null_dir(os.path.join(FOLDER_SAVE, 'frequencies', filename))
+
     absolute_freq = []
     relative_freq = []
     total_counts = {n: sum(count.values()) for n, count in ngram_counts.items()}
 
-    for text_id, ngram_count in text_ngram_counts:
-        abs_row = []
-        rel_row = []
-        for n in ngram_counts.keys():
-            for ngram in ngram_counts[n].keys():
-                abs_row.append(ngram_count[n][ngram])
-                rel_row.append(ngram_count[n][ngram] / total_counts[n] if total_counts[n] > 0 else 0)
-        absolute_freq.append([text_id] + abs_row)
-        relative_freq.append([text_id] + rel_row)
+    """
+    Добавить подсчет
+    """
 
     # Сохранение абсолютной частоты
-    with open(os.path.join(FOLDER_SAVE, 'frequencies', f'absolute_frequency.csv'), 'w', newline='', encoding='utf-8') as file:
+    with open(os.path.join(FOLDER_SAVE, 'frequencies', filename, f'absolute_frequency.csv'), 'w', newline='',
+              encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerow(['text_id'] + [f'top_{n}_ngram' for n in ngram_counts.keys()])
         writer.writerows(absolute_freq)
 
     # Сохранение относительной частоты
-    with open(os.path.join(FOLDER_SAVE, 'frequencies', f'relative_frequency.csv'), 'w', newline='', encoding='utf-8') as file:
+    with open(os.path.join(FOLDER_SAVE, 'frequencies', filename, f'relative_frequency.csv'), 'w', newline='',
+              encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerow(['text_id'] + [f'top_{n}_ngram' for n in ngram_counts.keys()])
         writer.writerows(relative_freq)
 
 
 def console():
-    parser = argparse. ArgumentParser(description="Простое CLI-приложение на Python")
+    parser = argparse.ArgumentParser()
     parser.add_argument("input", help="Введите папку с файлами расширения .txt или файл.csv")
     args = parser.parse_args()
     return args.input
 
 
 def main():
-    console()
     input_file = console()
-    type_input_file = os.path.splitext(input_file)[1]
+    name_file, type_input_file = os.path.splitext(input_file)
 
-    ngram_counts = {}
-    text_ngram_counts = []
+    create_dirs_for_results()
+    is_file(input_file)
+    print(1)
 
     if type_input_file == '':
-        ngram_counts, text_ngram_counts = process_texts_from_directory(input_file, N_GRAMMS)
+        process_texts_from_directory(input_file, N_GRAMMS)
     elif type_input_file == '.csv':
-        ngram_counts, text_ngram_counts = process_texts_from_csv(input_file, N_GRAMMS)
+        process_texts_from_csv(input_file, N_GRAMMS)
     else:
         print('Wrong dir/csv')
         input()
         quit(1)
-    save_ngram_counts(ngram_counts)
-    save_frequency_tables(text_ngram_counts, ngram_counts)
 
     print('Successful')
 
