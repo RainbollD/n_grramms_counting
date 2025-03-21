@@ -71,14 +71,14 @@ def process_texts_from_csv(csv_file, n_values):
     ngram_counts = {n: Counter() for n in n_values}
     text_ngram_counts = []
     df = pd.read_csv(csv_file)
-    for index, row in df.iterrows():
-        text = row.iloc[0]
-        text_ngrams = {n: extract_ngrams(text, n) for n in n_values}
-        text_ngram_count = {n: Counter(text_ngrams[n]) for n in n_values}
-        text_ngram_counts.append((index, text_ngram_count))
+    text = df.to_string().replace("Empty", "").replace("DataFrame", "").replace("Columns", "")
+    text_ngrams = {n: extract_ngrams(text, n) for n in n_values}
+    text_ngram_count = {n: Counter(text_ngrams[n]) for n in n_values}
+    text_ngram_counts.append((csv_file, text_ngram_count))
 
-        for n in n_values:
-            ngram_counts[n].update(text_ngram_count[n])
+    for n in n_values:
+        ngram_counts[n].update(text_ngram_count[n])
+
 
     save_ngram_counts(ngram_counts, csv_file)
     save_frequency_csv(text_ngram_counts, ngram_counts, csv_file)
