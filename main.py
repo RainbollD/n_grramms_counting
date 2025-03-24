@@ -4,6 +4,7 @@ import argparse
 import pandas as pd
 from collections import Counter
 from nltk import ngrams
+import numpy as np
 from nltk.tokenize import word_tokenize
 
 from config import *
@@ -15,11 +16,30 @@ def create_null_dir(path):
         os.makedirs(path)
 
 
+def create_freq_csv(file_path):
+    if not os.path.exists(file_path):
+        data = {'texts': []}
+        df = pd.DataFrame(data)
+
+        # Сохраняем DataFrame в CSV файл
+        df.to_csv(file_path, index=False, encoding='utf-8')
+
+
 def create_dirs_for_results():
     # Создание папок для вывода результата
     create_null_dir(FOLDER_SAVE)
     create_null_dir(os.path.join(FOLDER_SAVE, 'best_n'))
     create_null_dir(os.path.join(FOLDER_SAVE, 'frequencies'))
+
+    create_freq_csv('result_ngramms/frequencies/absolute_frequency.csv')
+    create_freq_csv('result_ngramms/frequencies/relative_frequency.csv')
+
+
+def create_special_dir_res(f_name, dir):
+    filename, type_ = os.path.splitext(f_name)
+    filename = f"{filename}_txt" if type_ == '.txt' else f"{filename}_csv"
+    create_null_dir(os.path.join(FOLDER_SAVE, dir, filename))
+    return filename
 
 
 def is_file(file_path):
@@ -57,7 +77,8 @@ def process_texts_from_directory(directory, n_values):
                     ngram_counts[n].update(text_ngram_count[n])
 
             save_ngram_counts(ngram_counts, filename)
-            save_frequency_csv(text_ngram_counts, ngram_counts, filename)
+            save_abs_freq_csv(ngram_counts, filename)
+            save_rel_freq_csv(ngram_counts, filename)
 
 
 def process_texts_from_csv(csv_file, n_values):
@@ -79,15 +100,13 @@ def process_texts_from_csv(csv_file, n_values):
     for n in n_values:
         ngram_counts[n].update(text_ngram_count[n])
 
-
     save_ngram_counts(ngram_counts, csv_file)
-    save_frequency_csv(text_ngram_counts, ngram_counts, csv_file)
+    save_abs_freq_csv(ngram_counts, csv_file)
+    save_rel_freq_csv(ngram_counts, csv_file)
 
 
 def save_ngram_counts(ngram_counts, filename):
-    filename, type_ = os.path.splitext(filename)
-    filename = f"{filename}_txt" if type_ == '.txt' else f"{filename}_csv"
-    create_null_dir(os.path.join(FOLDER_SAVE, 'best_n', filename))
+    filename = create_special_dir_res(filename, 'best_n')
 
     for n, counts in ngram_counts.items():
         top_ngrams = counts.most_common(20)
@@ -98,32 +117,47 @@ def save_ngram_counts(ngram_counts, filename):
             writer.writerows(top_ngrams)
 
 
-def save_frequency_csv(text_ngram_counts, ngram_counts, filename):
-    filename, type_ = os.path.splitext(filename)
-    filename = f"{filename}_txt" if type_ == '.txt' else f"{filename}_csv"
-    create_null_dir(os.path.join(FOLDER_SAVE, 'frequencies', filename))
-
-    absolute_freq = []
-    relative_freq = []
-    total_counts = {n: sum(count.values()) for n, count in ngram_counts.items()}
-
+def save_abs_freq_csv(ngram_counts, filename):
     """
-    Добавить подсчет
+    Сохранение n-грам со всез текстов
+    :param ngram_counts:
+    :param filename:
+    :return:
     """
+    df = pd.read_csv('result_ngramms/frequencies/absolute_frequency.csv')
+    column_texts = df['texts']
 
-    # Сохранение абсолютной частоты
-    with open(os.path.join(FOLDER_SAVE, 'frequencies', filename, f'absolute_frequency.csv'), 'w', newline='',
-              encoding='utf-8') as file:
-        writer = csv.writer(file)
-        writer.writerow(['text_id'] + [f'top_{n}_ngram' for n in ngram_counts.keys()])
-        writer.writerows(absolute_freq)
+    if filename in list(column_texts):
+         return
 
-    # Сохранение относительной частоты
-    with open(os.path.join(FOLDER_SAVE, 'frequencies', filename, f'relative_frequency.csv'), 'w', newline='',
-              encoding='utf-8') as file:
-        writer = csv.writer(file)
-        writer.writerow(['text_id'] + [f'top_{n}_ngram' for n in ngram_counts.keys()])
-        writer.writerows(relative_freq)
+    new_row = {'texts': filename}
+
+    for n, counts in ngram_counts.items():
+        for word, amount in counts.most_common(20):
+            word = str(word)
+            if word not in df.columns:
+                df[word] = np.nan
+            new_row[word] = amount
+
+    df = df._append(new_row, ignore_index=True)
+    df = df.fillna(0)
+
+    df.to_csv('result_ngramms/frequencies/absolute_frequency.csv', index=False)
+
+
+def save_rel_freq_csv(ngram_counts, filename):
+    """
+    Сохрание n-грам со всех текстов поделенная на суммарное количество в корпусе
+    :param ngram_counts:
+    :param filename:
+    :return:
+    """
+    df = pd.read_csv('result_ngramms/frequencies/absolute_frequency.csv')
+    for col in df.columns[1:]:
+        sum_col = df[col].sum()
+        df[col] = df[col].apply(lambda x: x / sum_col)
+
+    df.to_csv('result_ngramms/frequencies/relative_frequency.csv', index=False)
 
 
 def console():
@@ -132,12 +166,29 @@ def console():
     args = parser.parse_args()
     return args.input
 
+def check_csv():
+    """
+    Проверка на наличие колонки 'texts' в absolute_frequency.csv
+    и создание, если отсутствует
+    :return:
+    """
+    try:
+        df = pd.read_csv('result_ngramms/frequencies/absolute_frequency.csv')
+    except pd.errors.EmptyDataError:
+        column = ['texts']
+        df = pd.DataFrame(columns=column)
+        df.to_csv('result_ngramms/frequencies/absolute_frequency.csv', index=False)
+
+
 
 def main():
     input_file = console()
+
     name_file, type_input_file = os.path.splitext(input_file)
 
     create_dirs_for_results()
+    check_csv()
+
     is_file(input_file)
 
     if type_input_file == '':
