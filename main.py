@@ -124,23 +124,26 @@ def save_abs_freq_csv(ngram_counts, filename):
     :param filename:
     :return:
     """
-    df = pd.read_csv('result_ngramms/frequencies/absolute_frequency.csv')
+    try:
+        df = pd.read_csv('result_ngramms/frequencies/absolute_frequency.csv')
+    except FileNotFoundError:
+        df = pd.DataFrame(columns=['texts'])
+
     column_texts = df['texts']
 
-    if filename in list(column_texts):
-         return
+    if filename in column_texts.values:
+        print(f'Файл {filename} уже существует в таблице.')
+        return
 
     new_row = {'texts': filename}
 
     for n, counts in ngram_counts.items():
         for word, amount in counts.most_common(20):
             word = str(word)
-            if word not in df.columns:
-                df[word] = np.nan
             new_row[word] = amount
 
-    df = df._append(new_row, ignore_index=True)
-    df = df.fillna(0)
+    new_row_df = pd.DataFrame([new_row])
+    df = pd.concat([df, new_row_df], ignore_index=True).fillna(0)
 
     df.to_csv('result_ngramms/frequencies/absolute_frequency.csv', index=False)
 
@@ -166,20 +169,6 @@ def console():
     args = parser.parse_args()
     return args.input
 
-def check_csv():
-    """
-    Проверка на наличие колонки 'texts' в absolute_frequency.csv
-    и создание, если отсутствует
-    :return:
-    """
-    try:
-        df = pd.read_csv('result_ngramms/frequencies/absolute_frequency.csv')
-    except pd.errors.EmptyDataError:
-        column = ['texts']
-        df = pd.DataFrame(columns=column)
-        df.to_csv('result_ngramms/frequencies/absolute_frequency.csv', index=False)
-
-
 
 def main():
     input_file = console()
@@ -187,7 +176,6 @@ def main():
     name_file, type_input_file = os.path.splitext(input_file)
 
     create_dirs_for_results()
-    check_csv()
 
     is_file(input_file)
 
