@@ -4,7 +4,6 @@ import argparse
 import pandas as pd
 from collections import Counter
 from nltk import ngrams
-import numpy as np
 from nltk.tokenize import word_tokenize
 
 from config import *
@@ -82,6 +81,8 @@ def process_texts_from_directory(directory, n_values):
             all_saving(count_ngrams(text, n_values, filename,
                                     text_ngram_counts, ngram_counts), filename)
 
+def transform_grams(top_ngrams):
+    return [(' '.join(ngram_tuple), count) for ngram_tuple, count in top_ngrams]
 
 def all_saving(ngram_counts, csv_file):
     """Сохранение всех данных"""
@@ -99,7 +100,7 @@ def save_ngram_counts(ngram_counts, filename):
                   encoding='utf-8') as file:
             writer = csv.writer(file)
             writer.writerow(['n-gram', 'count'])
-            writer.writerows(top_ngrams)
+            writer.writerows(transform_grams(top_ngrams))
 
 
 def save_abs_freq_csv(ngram_counts, filename):
@@ -124,7 +125,7 @@ def save_abs_freq_csv(ngram_counts, filename):
 
     for n, counts in ngram_counts.items():
         for word, amount in counts.most_common(20):
-            word = str(word)
+            word = ' '.join(word)
             new_row[word] = amount
 
     new_row_df = pd.DataFrame([new_row])
