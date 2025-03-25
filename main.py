@@ -20,8 +20,6 @@ def create_freq_csv(file_path):
     if not os.path.exists(file_path):
         data = {'texts': []}
         df = pd.DataFrame(data)
-
-        # Сохраняем DataFrame в CSV файл
         df.to_csv(file_path, index=False, encoding='utf-8')
 
 
@@ -54,6 +52,16 @@ def extract_ngrams(text, n):
              word.isalnum() and word not in STOP_WORDS and not word.isdigit()]
     return list(ngrams(words, n))
 
+def count_ngrams(text, n_values, filename, text_ngram_counts, ngram_counts):
+    """Подсчет n-грамм"""
+    text_ngrams = {n: extract_ngrams(text, n) for n in n_values}
+    text_ngram_count = {n: Counter(text_ngrams[n]) for n in n_values}
+    text_ngram_counts.append((filename, text_ngram_count))
+
+    for n in n_values:
+        ngram_counts[n].update(text_ngram_count[n])
+
+    return ngram_counts
 
 def process_texts_from_directory(directory, n_values):
     """
@@ -67,18 +75,10 @@ def process_texts_from_directory(directory, n_values):
     text_ngram_counts = []
     for filename in os.listdir(directory):
         if filename.endswith('.txt'):
-            with open(os.path.join(directory, filename), 'r', encoding='utf-8') as file:
+            with open(os.path.join(directory, filename), encoding='utf-8') as file:
                 text = file.read()
-                text_ngrams = {n: extract_ngrams(text, n) for n in n_values}
-                text_ngram_count = {n: Counter(text_ngrams[n]) for n in n_values}
-                text_ngram_counts.append((filename, text_ngram_count))
-
-                for n in n_values:
-                    ngram_counts[n].update(text_ngram_count[n])
-
-            save_ngram_counts(ngram_counts, filename)
-            save_abs_freq_csv(ngram_counts, filename)
-            save_rel_freq_csv(ngram_counts, filename)
+            all_saving(count_ngrams(text, n_values, filename,
+                                    text_ngram_counts, ngram_counts), filename)
 
 
 def process_texts_from_csv(csv_file, n_values):
@@ -93,13 +93,12 @@ def process_texts_from_csv(csv_file, n_values):
     text_ngram_counts = []
     df = pd.read_csv(csv_file)
     text = df.to_string().replace("Empty", "").replace("DataFrame", "").replace("Columns", "")
-    text_ngrams = {n: extract_ngrams(text, n) for n in n_values}
-    text_ngram_count = {n: Counter(text_ngrams[n]) for n in n_values}
-    text_ngram_counts.append((csv_file, text_ngram_count))
 
-    for n in n_values:
-        ngram_counts[n].update(text_ngram_count[n])
+    all_saving(count_ngrams(text, n_values, csv_file,
+                            text_ngram_counts, ngram_counts), csv_file)
 
+def all_saving(ngram_counts, csv_file):
+    """Сохранение всех данных"""
     save_ngram_counts(ngram_counts, csv_file)
     save_abs_freq_csv(ngram_counts, csv_file)
     save_rel_freq_csv(ngram_counts, csv_file)
