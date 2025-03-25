@@ -52,6 +52,7 @@ def extract_ngrams(text, n):
              word.isalnum() and word not in STOP_WORDS and not word.isdigit()]
     return list(ngrams(words, n))
 
+
 def count_ngrams(text, n_values, filename, text_ngram_counts, ngram_counts):
     """Подсчет n-грамм"""
     text_ngrams = {n: extract_ngrams(text, n) for n in n_values}
@@ -62,6 +63,7 @@ def count_ngrams(text, n_values, filename, text_ngram_counts, ngram_counts):
         ngram_counts[n].update(text_ngram_count[n])
 
     return ngram_counts
+
 
 def process_texts_from_directory(directory, n_values):
     """
@@ -80,22 +82,6 @@ def process_texts_from_directory(directory, n_values):
             all_saving(count_ngrams(text, n_values, filename,
                                     text_ngram_counts, ngram_counts), filename)
 
-
-def process_texts_from_csv(csv_file, n_values):
-    """
-    Открывает файл,
-    создает для каждой n свои n-граммы, считает количество и сохраняет
-    :param csv_file: путь к файлу .csv
-    :param n_values: кортеж для n
-    :return:
-    """
-    ngram_counts = {n: Counter() for n in n_values}
-    text_ngram_counts = []
-    df = pd.read_csv(csv_file)
-    text = df.to_string().replace("Empty", "").replace("DataFrame", "").replace("Columns", "")
-
-    all_saving(count_ngrams(text, n_values, csv_file,
-                            text_ngram_counts, ngram_counts), csv_file)
 
 def all_saving(ngram_counts, csv_file):
     """Сохранение всех данных"""
@@ -170,7 +156,7 @@ def console():
 
 
 def main():
-    input_file = console()
+    input_file = "Small_prince.csv"  # console()
 
     name_file, type_input_file = os.path.splitext(input_file)
 
@@ -180,8 +166,6 @@ def main():
 
     if type_input_file == '':
         process_texts_from_directory(input_file, N_GRAMMS)
-    elif type_input_file == '.csv':
-        process_texts_from_csv(input_file, N_GRAMMS)
     else:
         print('Wrong dir/csv')
         input()
