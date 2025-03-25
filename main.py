@@ -3,11 +3,14 @@ import csv
 import argparse
 import pandas as pd
 from collections import Counter
+import nltk
+from nltk.corpus import stopwords
 from nltk import ngrams
 from nltk.tokenize import word_tokenize
 
 from config import *
 
+stop_words_nltk = set(stopwords.words('russian'))
 
 def create_null_dir(path):
     # Создание папки, если ее нет
@@ -48,7 +51,7 @@ def is_file(file_path):
 def extract_ngrams(text, n):
     # Создание n-грамм из текста
     words = [word for word in word_tokenize(text.lower()) if
-             word.isalnum() and word not in STOP_WORDS and not word.isdigit()]
+             word.isalnum() and word not in STOP_WORDS and not word.isdigit() and word not in stop_words_nltk]
     return list(ngrams(words, n))
 
 
@@ -150,6 +153,19 @@ def save_rel_freq_csv(ngram_counts, filename):
 
     df.to_csv('result_ngramms/frequencies/relative_frequency.csv', index=False)
 
+def auto_nltk_tab():
+    """
+        Проверка на наличие и установка пакета nltk
+        :return:
+    """
+    nltk.data.path.append(NTLK_DATA_DIRECTORY)
+    if not os.path.exists(NTLK_DATA_DIRECTORY):
+        os.makedirs(NTLK_DATA_DIRECTORY)
+
+    try:
+        nltk.data.find('tokenizers/stopwords')
+    except LookupError:
+        nltk.download('stopwords', download_dir=NTLK_DATA_DIRECTORY)
 
 def console():
     parser = argparse.ArgumentParser()
@@ -159,6 +175,8 @@ def console():
 
 
 def main():
+    auto_nltk_tab()
+
     input_file = console()
 
     name_file, type_input_file = os.path.splitext(input_file)
