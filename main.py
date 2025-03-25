@@ -81,8 +81,10 @@ def process_texts_from_directory(directory, n_values):
             all_saving(count_ngrams(text, n_values, filename,
                                     text_ngram_counts, ngram_counts), filename)
 
+
 def transform_grams(top_ngrams):
     return [(' '.join(ngram_tuple), count) for ngram_tuple, count in top_ngrams]
+
 
 def all_saving(ngram_counts, csv_file):
     """Сохранение всех данных"""
