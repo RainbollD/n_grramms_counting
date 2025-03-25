@@ -156,7 +156,7 @@ def console():
 
 
 def main():
-    input_file = "Small_prince.csv"  # console()
+    input_file = console()
 
     name_file, type_input_file = os.path.splitext(input_file)
 
