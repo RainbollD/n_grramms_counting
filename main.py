@@ -10,49 +10,47 @@ from nltk.tokenize import word_tokenize
 
 from config import *
 
-stop_words_nltk = set(stopwords.words('russian'))
+STOP_WORDS_FROM_NLTK = set(stopwords.words('russian'))
 
-def create_null_dir(path):
+PATH_BEST_N = str(os.path.join(FOLDER_SAVE, FOLDER_N_GRAMS))
+PATH_FREQUENCIES = str(os.path.join(FOLDER_SAVE, FOLDER_FREQUENCY))
+PATH_ABS = str(os.path.join(FOLDER_SAVE, FOLDER_FREQUENCY, CSV_ABS_FREQUENCY))
+PATH_REL = str(os.path.join(FOLDER_SAVE, FOLDER_FREQUENCY, CSV_REL_FREQUENCY))
+
+
+def create_dir(path):
     # Создание папки, если ее нет
     if not os.path.isdir(path):
         os.makedirs(path)
 
 
-def create_freq_csv(file_path):
-    if not os.path.exists(file_path):
+def create_csv(path):
+    if not os.path.exists(path):
         data = {'texts': []}
         df = pd.DataFrame(data)
-        df.to_csv(file_path, index=False, encoding='utf-8')
+        df.to_csv(path, index=False, encoding='utf-8')
 
 
 def create_dirs_for_results():
     # Создание папок для вывода результата
-    create_null_dir(FOLDER_SAVE)
-    create_null_dir(os.path.join(FOLDER_SAVE, 'best_n'))
-    create_null_dir(os.path.join(FOLDER_SAVE, 'frequencies'))
 
-    create_freq_csv('result_ngramms/frequencies/absolute_frequency.csv')
-    create_freq_csv('result_ngramms/frequencies/relative_frequency.csv')
+    create_dir(PATH_BEST_N)
+    create_dir(PATH_FREQUENCIES)
 
-
-def create_special_dir_res(f_name, dir):
-    filename, type_ = os.path.splitext(f_name)
-    filename = f"{filename}_txt" if type_ == '.txt' else f"{filename}_csv"
-    create_null_dir(os.path.join(FOLDER_SAVE, dir, filename))
-    return filename
-
-
-def is_file(file_path):
-    if not os.path.exists(file_path):
-        print(f"Файл {file_path} не существует.")
-        quit(1)
+    create_csv(PATH_ABS)
+    create_csv(PATH_REL)
 
 
 def extract_ngrams(text, n):
     # Создание n-грамм из текста
     words = [word for word in word_tokenize(text.lower()) if
-             word.isalnum() and word not in STOP_WORDS and not word.isdigit() and word not in stop_words_nltk]
+             word.isalnum() and word not in STOP_WORDS and not word.isdigit() and
+             word not in STOP_WORDS_FROM_NLTK]
     return list(ngrams(words, n))
+
+
+def transform_grams(top_ngrams):
+    return [(' '.join(ngram_tuple), count) for ngram_tuple, count in top_ngrams]
 
 
 def count_ngrams(text, n_values, filename, text_ngram_counts, ngram_counts):
@@ -72,36 +70,37 @@ def process_texts_from_directory(directory, n_values):
     Открывает папку, проходит по всем файлам с форматом .txt,
     создает для каждой n свои n-граммы, считает количество и сохраняет
     :param directory: путь к папке
-    :param n_values: кортеж для n
+    :param n_values: кортеж для n в n_gram
     :return:
     """
+
     ngram_counts = {n: Counter() for n in n_values}
+
     text_ngram_counts = []
+
     for filename in os.listdir(directory):
         if filename.endswith('.txt'):
             with open(os.path.join(directory, filename), encoding='utf-8') as file:
                 text = file.read()
-            all_saving(count_ngrams(text, n_values, filename,
-                                    text_ngram_counts, ngram_counts), filename)
+            n_grams = count_ngrams(text, n_values, filename,
+                                   text_ngram_counts, ngram_counts)
+            all_saving(n_grams, filename)
 
 
-def transform_grams(top_ngrams):
-    return [(' '.join(ngram_tuple), count) for ngram_tuple, count in top_ngrams]
-
-
-def all_saving(ngram_counts, csv_file):
+def all_saving(ngram_counts, filename):
     """Сохранение всех данных"""
-    save_ngram_counts(ngram_counts, csv_file)
-    save_abs_freq_csv(ngram_counts, csv_file)
-    save_rel_freq_csv(ngram_counts, csv_file)
+    save_ngram_counts(ngram_counts, filename)
+    save_abs_freq_csv(ngram_counts, filename)
+    save_rel_freq_csv()
 
 
 def save_ngram_counts(ngram_counts, filename):
-    filename = create_special_dir_res(filename, 'best_n')
+    filename = filename.replace('.', '_')
+    create_dir(os.path.join(PATH_BEST_N, filename))
 
     for n, counts in ngram_counts.items():
         top_ngrams = counts.most_common(20)
-        with open(os.path.join(FOLDER_SAVE, 'best_n', filename, f'top_{n}.csv'), 'w', newline='',
+        with open(os.path.join(PATH_BEST_N, filename, f'top_{n}.csv'), 'w', newline='',
                   encoding='utf-8') as file:
             writer = csv.writer(file)
             writer.writerow(['n-gram', 'count'])
@@ -115,10 +114,18 @@ def save_abs_freq_csv(ngram_counts, filename):
     :param filename:
     :return:
     """
-    try:
-        df = pd.read_csv('result_ngramms/frequencies/absolute_frequency.csv')
-    except FileNotFoundError:
-        df = pd.DataFrame(columns=['texts'])
+
+    def create_row():
+        new_row = {'texts': filename}
+
+        for n, counts in ngram_counts.items():
+            for word, amount in counts.most_common(20):
+                word = ' '.join(word)
+                new_row[word] = amount
+
+        return new_row
+
+    df = pd.read_csv(PATH_ABS)
 
     column_texts = df['texts']
 
@@ -126,32 +133,20 @@ def save_abs_freq_csv(ngram_counts, filename):
         print(f'Файл {filename} уже существует в таблице.')
         return
 
-    new_row = {'texts': filename}
-
-    for n, counts in ngram_counts.items():
-        for word, amount in counts.most_common(20):
-            word = ' '.join(word)
-            new_row[word] = amount
-
-    new_row_df = pd.DataFrame([new_row])
+    new_row_df = pd.DataFrame([create_row()])
     df = pd.concat([df, new_row_df], ignore_index=True).fillna(0)
 
-    df.to_csv('result_ngramms/frequencies/absolute_frequency.csv', index=False)
+    df.to_csv(PATH_ABS, index=False)
 
 
-def save_rel_freq_csv(ngram_counts, filename):
-    """
-    Сохрание n-грам со всех текстов поделенная на суммарное количество в корпусе
-    :param ngram_counts:
-    :param filename:
-    :return:
-    """
-    df = pd.read_csv('result_ngramms/frequencies/absolute_frequency.csv')
+def save_rel_freq_csv():
+    df = pd.read_csv(PATH_ABS)
     for col in df.columns[1:]:
         sum_col = df[col].sum()
         df[col] = df[col].apply(lambda x: x / sum_col)
 
-    df.to_csv('result_ngramms/frequencies/relative_frequency.csv', index=False)
+    df.to_csv(PATH_REL, index=False)
+
 
 def auto_nltk_tab():
     """
@@ -167,29 +162,32 @@ def auto_nltk_tab():
     except LookupError:
         nltk.download('stopwords', download_dir=NTLK_DATA_DIRECTORY)
 
-def console():
+
+def is_file(file_path):
+    if not os.path.exists(file_path):
+        print(f"Файл {file_path} не существует.")
+        quit(1)
+
+
+def get_console():
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="Введите папку с файлами расширения .txt или файл.csv")
     args = parser.parse_args()
+    is_file(args.input)
     return args.input
 
 
 def main():
     auto_nltk_tab()
 
-    input_file = console()
-
-    name_file, type_input_file = os.path.splitext(input_file)
+    input_file = "tests"  # console()
 
     create_dirs_for_results()
 
-    is_file(input_file)
-
-    if type_input_file == '':
+    if os.path.splitext(input_file)[1] == '':
         process_texts_from_directory(input_file, N_GRAMMS)
     else:
         print('Wrong dir/csv')
-        input()
         quit(1)
 
     print('Successful')
