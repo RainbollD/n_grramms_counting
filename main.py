@@ -53,8 +53,11 @@ def transform_grams(top_ngrams):
     return [(' '.join(ngram_tuple), count) for ngram_tuple, count in top_ngrams]
 
 
-def count_ngrams(text, n_values, filename, text_ngram_counts, ngram_counts):
+def count_ngrams(text, n_values, filename):
     """Подсчет n-грамм"""
+    ngram_counts = {n: Counter() for n in n_values}
+    text_ngram_counts = []
+
     text_ngrams = {n: extract_ngrams(text, n) for n in n_values}
     text_ngram_count = {n: Counter(text_ngrams[n]) for n in n_values}
     text_ngram_counts.append((filename, text_ngram_count))
@@ -74,16 +77,13 @@ def process_texts_from_directory(directory, n_values):
     :return:
     """
 
-    ngram_counts = {n: Counter() for n in n_values}
-
-    text_ngram_counts = []
-
     for filename in os.listdir(directory):
         if filename.endswith('.txt'):
             with open(os.path.join(directory, filename), encoding='utf-8') as file:
                 text = file.read()
-            n_grams = count_ngrams(text, n_values, filename,
-                                   text_ngram_counts, ngram_counts)
+
+            n_grams = count_ngrams(text, n_values, filename)
+
             all_saving(n_grams, filename)
 
 
@@ -171,7 +171,7 @@ def is_file(file_path):
 
 def get_console():
     parser = argparse.ArgumentParser()
-    parser.add_argument("input", help="Введите папку с файлами расширения .txt или файл.csv")
+    parser.add_argument("input", help="Введите папку")
     args = parser.parse_args()
     is_file(args.input)
     return args.input
