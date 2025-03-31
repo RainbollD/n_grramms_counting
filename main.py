@@ -1,21 +1,13 @@
-import os
 import csv
 import argparse
 import pandas as pd
 from collections import Counter
 import nltk
-from nltk.corpus import stopwords
 from nltk import ngrams
 from nltk.tokenize import word_tokenize
+import spacy
 
 from config import *
-
-STOP_WORDS_FROM_NLTK = set(stopwords.words('russian'))
-
-PATH_BEST_N = str(os.path.join(FOLDER_SAVE, FOLDER_N_GRAMS))
-PATH_FREQUENCIES = str(os.path.join(FOLDER_SAVE, FOLDER_FREQUENCY))
-PATH_ABS = str(os.path.join(FOLDER_SAVE, FOLDER_FREQUENCY, CSV_ABS_FREQUENCY))
-PATH_REL = str(os.path.join(FOLDER_SAVE, FOLDER_FREQUENCY, CSV_REL_FREQUENCY))
 
 
 def create_dir(path):
@@ -31,7 +23,7 @@ def create_csv(path):
         df.to_csv(path, index=False, encoding='utf-8')
 
 
-def create_dirs_for_results():
+def create_dirs():
     # Создание папок для вывода результата
 
     create_dir(PATH_BEST_N)
@@ -39,6 +31,11 @@ def create_dirs_for_results():
 
     create_csv(PATH_ABS)
     create_csv(PATH_REL)
+
+    # Создание папок для дополнительных моделей
+
+    create_dir(NTLK_DATA_DIRECTORY)
+    create_dir(SPACY_DATA_DIRECTORY)
 
 
 def extract_ngrams(text, n):
@@ -49,8 +46,16 @@ def extract_ngrams(text, n):
     return list(ngrams(words, n))
 
 
-def transform_grams(top_ngrams):
+def ngrams_to_str(top_ngrams):
     return [(' '.join(ngram_tuple), count) for ngram_tuple, count in top_ngrams]
+
+
+def initial_word(text):
+    """Переводит слова в тексте в начальную форму"""
+    nlp = spacy.load(SPACY_DATA_DIRECTORY)
+    doc = nlp(text)
+    text = [token.lemma_ for token in doc]
+    return ' '.join(text)
 
 
 def count_ngrams(text, n_values, filename):
@@ -68,7 +73,7 @@ def count_ngrams(text, n_values, filename):
     return ngram_counts
 
 
-def process_texts_from_directory(directory, n_values):
+def process_texts_from_directory(directory, n_values=N_GRAMMS):
     """
     Открывает папку, проходит по всем файлам с форматом .txt,
     создает для каждой n свои n-граммы, считает количество и сохраняет
@@ -80,7 +85,7 @@ def process_texts_from_directory(directory, n_values):
     for filename in os.listdir(directory):
         if filename.endswith('.txt'):
             with open(os.path.join(directory, filename), encoding='utf-8') as file:
-                text = file.read()
+                text = initial_word(file.read())
 
             n_grams = count_ngrams(text, n_values, filename)
 
@@ -104,7 +109,24 @@ def save_ngram_counts(ngram_counts, filename):
                   encoding='utf-8') as file:
             writer = csv.writer(file)
             writer.writerow(['n-gram', 'count'])
-            writer.writerows(transform_grams(top_ngrams))
+            writer.writerows(ngrams_to_str(top_ngrams))
+
+
+def create_row(filename, ngram_counts):
+    new_row = {'texts': filename}
+
+    for n, counts in ngram_counts.items():
+        for word, amount in counts.most_common(20):
+            word = ' '.join(word)
+            new_row[word] = amount
+
+    return new_row
+
+
+def is_file_in_cvs(filename, column_texts):
+    if filename in column_texts.values:
+        print(f'Файл {filename} уже существует в таблице.')
+        return
 
 
 def save_abs_freq_csv(ngram_counts, filename):
@@ -115,25 +137,13 @@ def save_abs_freq_csv(ngram_counts, filename):
     :return:
     """
 
-    def create_row():
-        new_row = {'texts': filename}
-
-        for n, counts in ngram_counts.items():
-            for word, amount in counts.most_common(20):
-                word = ' '.join(word)
-                new_row[word] = amount
-
-        return new_row
-
     df = pd.read_csv(PATH_ABS)
 
     column_texts = df['texts']
 
-    if filename in column_texts.values:
-        print(f'Файл {filename} уже существует в таблице.')
-        return
+    is_file_in_cvs(filename, column_texts)
 
-    new_row_df = pd.DataFrame([create_row()])
+    new_row_df = pd.DataFrame([create_row(filename, ngram_counts)])
     df = pd.concat([df, new_row_df], ignore_index=True).fillna(0)
 
     df.to_csv(PATH_ABS, index=False)
@@ -148,19 +158,41 @@ def save_rel_freq_csv():
     df.to_csv(PATH_REL, index=False)
 
 
-def auto_nltk_tab():
-    """
-        Проверка на наличие и установка пакета nltk
-        :return:
-    """
-    nltk.data.path.append(NTLK_DATA_DIRECTORY)
-    if not os.path.exists(NTLK_DATA_DIRECTORY):
-        os.makedirs(NTLK_DATA_DIRECTORY)
+def auto_intall_models():
+    def nltk_lab():
+        """
+            Проверка на наличие и установка пакета nltk
+            :return:
+        """
+        nltk.data.path.append(NTLK_DATA_DIRECTORY)
+        if not os.path.exists(NTLK_DATA_DIRECTORY):
+            os.makedirs(NTLK_DATA_DIRECTORY)
 
-    try:
-        nltk.data.find('tokenizers/stopwords')
-    except LookupError:
-        nltk.download('stopwords', download_dir=NTLK_DATA_DIRECTORY)
+        try:
+            nltk.data.find('tokenizers/stopwords')
+        except:
+            nltk.download('stopwords', download_dir=NTLK_DATA_DIRECTORY)
+
+    def spacy_lab():
+        """
+            Проверка на наличие и установка пакета spacy
+            :return:
+        """
+        if len(os.listdir(SPACY_DATA_DIRECTORY)) == 0:
+            try:
+                nlp = spacy.load("ru_core_news_sm")
+                nlp.to_disk(SPACY_DATA_DIRECTORY)
+            except:
+                print("Установите 'ru_core_news_sm'\npython -m spacy download ru_core_news_sm")
+
+    nltk_lab()
+    spacy_lab()
+
+
+def is_it_folder(filename):
+    if not os.path.splitext(filename)[1] == '':
+        print("It isn't a folder")
+        quit(1)
 
 
 def is_file(file_path):
@@ -178,17 +210,15 @@ def get_console():
 
 
 def main():
-    auto_nltk_tab()
+    create_dirs()
 
-    input_file = get_console()
+    auto_intall_models()
 
-    create_dirs_for_results()
+    input_file = 'tests'#get_console()
 
-    if os.path.splitext(input_file)[1] == '':
-        process_texts_from_directory(input_file, N_GRAMMS)
-    else:
-        print('Wrong dir/csv')
-        quit(1)
+    is_it_folder(input_file)
+
+    process_texts_from_directory(input_file)
 
     print('Successful')
 
