@@ -180,7 +180,7 @@ def get_console():
 def main():
     auto_nltk_tab()
 
-    input_file = "tests"  # console()
+    input_file = get_console()
 
     create_dirs_for_results()
 
