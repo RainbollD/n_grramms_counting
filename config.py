@@ -1,8 +1,19 @@
+import os
+from nltk.corpus import stopwords
+
+STOP_WORDS_FROM_NLTK = set(stopwords.words('russian'))
+
 FOLDER_SAVE = 'result_ngramms'
 FOLDER_N_GRAMS = 'best_n'
 FOLDER_FREQUENCY = 'frequencies'
 CSV_ABS_FREQUENCY = 'absolute_frequency.csv'
 CSV_REL_FREQUENCY = 'relative_frequency.csv'
+
+PATH_BEST_N = str(os.path.join(FOLDER_SAVE, FOLDER_N_GRAMS))
+PATH_FREQUENCIES = str(os.path.join(FOLDER_SAVE, FOLDER_FREQUENCY))
+PATH_ABS = str(os.path.join(FOLDER_SAVE, FOLDER_FREQUENCY, CSV_ABS_FREQUENCY))
+PATH_REL = str(os.path.join(FOLDER_SAVE, FOLDER_FREQUENCY, CSV_REL_FREQUENCY))
+
 
 N_GRAMMS = tuple((i for i in range(1, 21)))
 
