@@ -28,4 +28,4 @@ STOP_WORDS = ["в", "к", "с", "на", "о", "об", "обо", "во", "ко", 
               "сквозь", "вокруг",
               "*", "-", "—", "–", "были"]
 
-NTLK_DATA_DIRECTORY = 'nltk_lab'
+NTLK_DATA_DIRECTORY = 'addition_downloads/nltk_lab'
