@@ -29,3 +29,4 @@ STOP_WORDS = ["в", "к", "с", "на", "о", "об", "обо", "во", "ко", 
               "*", "-", "—", "–", "были"]
 
 NTLK_DATA_DIRECTORY = 'addition_downloads/nltk_lab'
+SPACY_DATA_DIRECTORY = 'addition_downloads/spacy_ru'
