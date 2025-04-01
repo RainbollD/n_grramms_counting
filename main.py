@@ -91,6 +91,9 @@ def process_texts_from_directory(directory, n_values=N_GRAMMS):
 
             all_saving(n_grams, filename)
 
+            print(f"Файл {filename} успешно обработан.")
+
+
 
 def all_saving(ngram_counts, filename):
     """Сохранение всех данных"""
@@ -123,12 +126,6 @@ def create_row(filename, ngram_counts):
     return new_row
 
 
-def is_file_in_cvs(filename, column_texts):
-    if filename in column_texts.values:
-        print(f'Файл {filename} уже существует в таблице.')
-        return
-
-
 def save_abs_freq_csv(ngram_counts, filename):
     """
     Сохранение n-грам со всез текстов
@@ -138,10 +135,6 @@ def save_abs_freq_csv(ngram_counts, filename):
     """
 
     df = pd.read_csv(PATH_ABS)
-
-    column_texts = df['texts']
-
-    is_file_in_cvs(filename, column_texts)
 
     new_row_df = pd.DataFrame([create_row(filename, ngram_counts)])
     df = pd.concat([df, new_row_df], ignore_index=True).fillna(0)
@@ -214,7 +207,7 @@ def main():
 
     auto_intall_models()
 
-    input_file = 'tests'#get_console()
+    input_file = get_console()
 
     is_it_folder(input_file)
 
