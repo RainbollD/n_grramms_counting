@@ -10,7 +10,7 @@ N-Gramm Count — это инструмент для анализа тексто
 
 1. Склонируйте репозиторий:
    ```bash
-   git clone https://github.com/RainbollD/n_grramms_counting.git
+   git clone https://github.com/RainbollD/ngramms_count.git
    ```
 
 2. Установите необходимые зависимости:
